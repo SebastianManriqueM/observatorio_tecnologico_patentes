@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 import os
-import nltk
+#import nltk
 
 
 
@@ -148,10 +148,10 @@ def get_cits_per_param(df_unfilt, years, param='country'):  #APAGAR
 #-----------------------------------------------*****-----------------------------------------------
 
 
-d_user_dates = {"ini": { "year": '1980', #usar formato de data
+d_user_dates = {"ini": { "year": '2000', #usar formato de data
                 "month" : '01', 
                 "day"   : '01' },
-        "fin": { "year": '2022', 
+        "fin": { "year": '2020', 
                 "month": '01', 
                 "day"  : '01' },
         }
@@ -175,46 +175,88 @@ user_back_data_filt = [ "patent_title","app_date", "patent_date",
                         "patent_abstract", "patent_num_cited_by_us_patents" ]
 curr_page = 1
 
-for key in d_l_pb_patents_code.keys():
-    patent_obj = Patents()
-    #patent_obj.write_user_request_filters(d_user_dates, user_ipc_code, "ipc")
-    patent_obj.write_user_request_filters(d_user_dates, d_l_pb_patents_code[key])
-    patent_obj.write_user_back_data(user_back_data_filt)
-    data = patent_obj.get_with_filters()
+
+o_api_pview = Patents()
+o_api_pview.write_user_request_filters( d_user_dates, d_l_pb_patents_code[ "State_of_charge" ] )
+o_api_pview.write_user_back_data( user_back_data_filt )
+o_api_pview.get_with_filters()
+
+if (o_api_pview.raw_data[0]['count'] > 0):
+    l_data = []
+    count = 0
+            
+    for i_l_element in o_api_pview.raw_data:
+        l_data.extend( organize_for_dataframe(o_api_pview.raw_data[count]['patents']) )
+        count += 1
+    df_patents = pd.DataFrame(data=l_data)
+    df_patents['app_date']    = pd.to_datetime( df_patents['app_date']   , format='%Y-%m-%d' )
+    df_patents['patent_date'] = pd.to_datetime( df_patents['patent_date'], format='%Y-%m-%d' )
+    df_patents = df_patents.sort_values(["app_date"]).reset_index( drop=True )
+
+    string_param = 'assignee_country'
+    n_top        = 4
+    
+    i_yr = int( d_user_dates['ini']['year'] )
+    yr_spam = 10
+    count =0 
+    df_plot = pd.DataFrame([])
+
+    top_n = df_patents[ string_param ].value_counts()[:n_top]
+    df_n_patents = df_patents.groupby('app_date')[string_param].value_counts().unstack(fill_value=0).resample('5Y').sum()
+    df_n_patents['Total_row'] = df_n_patents.sum(axis=1)
+    df_filt      = df_n_patents[ top_n.keys() ]
+    df_filt['ROW'] = df_n_patents['Total_row'] - df_filt.sum(axis=1)
+
+    df_n_cits = df_patents[["patent_num_cited_by_us_patents", "assignee_country",'app_date']].groupby('assignee_country').resample('5Y', on='app_date').sum()
+    #df_plot.plot.bar()
+df_counts = df_filt.groupby(['assignee_country']).count()
+a=1
 
 
-    if patent_obj.raw_data[0]['count'] > 0:
-        l_data = []
-        count = 0
-        
-        for i_l_element in patent_obj.raw_data:
-            l_data.extend( organize_for_dataframe(patent_obj.raw_data[count]['patents']) )
-            count += 1
-
-        df_patents = pd.DataFrame(data=l_data)
-        
-        df_patents['app_date'] = pd.to_datetime( df_patents['app_date'], format='%Y-%m-%d' )
-        df_patents['patent_date'] = pd.to_datetime( df_patents['patent_date'], format='%Y-%m-%d' )
-        #df_patents = df_patents.sort_values( by='app_date' )
-        print(list(df_patents.columns))
-        
-        rt_dir = 'C:/Users/sebastiand/Documents/0_UTFPR/EXTENSÃO/Res_api_pview'
-        n_dir  = key
-
-        df_plot_n_patents_company = get_df_n_patents_per_param_yrs_grouped( df_patents, string_param = 'assignee_organization' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ) , yr_spam = 10 )
-        bar_plot_per_param( df_plot_n_patents_company, str_per = 'n_patents', string_param = 'assignee_organization' , new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
-        df_patents.to_csv( rt_dir + '/' + n_dir + '/out.csv' )
-        
-                        
-        df_plot_n_patents_country = get_df_n_patents_per_param_yrs_grouped( df_patents, string_param = 'assignee_country' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
-        bar_plot_per_param( df_plot_n_patents_country, str_per = 'n_patents' , string_param = 'assignee_country' ,new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
 
 
-        df_plot_n_cits_company = get_df_n_cits_per_param_yrs_grouped( df_patents, string_param = 'assignee_organization' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
-        bar_plot_per_param( df_plot_n_cits_company, str_per = 'n_cits' , string_param = 'assignee_organization', new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
-                        
-        df_plot_n_cits_country = get_df_n_cits_per_param_yrs_grouped( df_patents, string_param = 'assignee_country' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
-        bar_plot_per_param( df_plot_n_cits_country, str_per = 'n_cits' , string_param = 'assignee_country' , new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
+
+def iterate_all_cat( d_l_pb_patents_code, d_user_dates, user_back_data_filt  ):
+    for key in d_l_pb_patents_code.keys():
+        patent_obj = Patents()
+        #patent_obj.write_user_request_filters(d_user_dates, user_ipc_code, "ipc")
+        patent_obj.write_user_request_filters(d_user_dates, d_l_pb_patents_code[key])
+        patent_obj.write_user_back_data(user_back_data_filt)
+        patent_obj.get_with_filters()
+
+
+        if patent_obj.raw_data[0]['count'] > 0:
+            l_data = []
+            count = 0
+            
+            for i_l_element in patent_obj.raw_data:
+                l_data.extend( organize_for_dataframe(patent_obj.raw_data[count]['patents']) )
+                count += 1
+
+            df_patents = pd.DataFrame(data=l_data)
+            
+            df_patents['app_date'] = pd.to_datetime( df_patents['app_date'], format='%Y-%m-%d' )
+            df_patents['patent_date'] = pd.to_datetime( df_patents['patent_date'], format='%Y-%m-%d' )
+            #df_patents = df_patents.sort_values( by='app_date' )
+            print(list(df_patents.columns))
+            
+            rt_dir = 'C:/Users/sebastiand/Documents/0_UTFPR/EXTENSÃO/Res_api_pview'
+            n_dir  = key
+
+            df_plot_n_patents_company = get_df_n_patents_per_param_yrs_grouped( df_patents, string_param = 'assignee_organization' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ) , yr_spam = 10 )
+            bar_plot_per_param( df_plot_n_patents_company, str_per = 'n_patents', string_param = 'assignee_organization' , new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
+            df_patents.to_csv( rt_dir + '/' + n_dir + '/out.csv' )
+            
+                            
+            df_plot_n_patents_country = get_df_n_patents_per_param_yrs_grouped( df_patents, string_param = 'assignee_country' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
+            bar_plot_per_param( df_plot_n_patents_country, str_per = 'n_patents' , string_param = 'assignee_country' ,new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
+
+
+            df_plot_n_cits_company = get_df_n_cits_per_param_yrs_grouped( df_patents, string_param = 'assignee_organization' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
+            bar_plot_per_param( df_plot_n_cits_company, str_per = 'n_cits' , string_param = 'assignee_organization', new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
+                            
+            df_plot_n_cits_country = get_df_n_cits_per_param_yrs_grouped( df_patents, string_param = 'assignee_country' , n_top_par = 5, yr_start = int( d_user_dates['ini']['year'] ), yr_spam = 10 )
+            bar_plot_per_param( df_plot_n_cits_country, str_per = 'n_cits' , string_param = 'assignee_country' , new_dir = n_dir, root_dir = rt_dir , show_flag = 0 )
         
 
         

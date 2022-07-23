@@ -29,8 +29,6 @@ class Patents():
                     self.raw_data.append( response.json() )
                     n_pt_read = n_pt_read + self.raw_data[counter-1]["count"]
                     counter += 1
-                    
-
         return
     
     def write_user_request_filters( self, user_dates: dict , user_pt_code: list, type="cpc" ):
