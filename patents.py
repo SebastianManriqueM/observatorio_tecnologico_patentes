@@ -12,8 +12,25 @@ class Patents():
                         'o': json.dumps({"page": self.curr_page, "per_page": self.n_pt_per_page})
                         }
         self.raw_data = []
+        self.ord_data = []
 
     def get_with_filters(self):
+        def organize_for_dataframe(raw_data): #melhor indicar informação de cada coluna para o data frame
+            l_raw_data = [ ]
+            for i_patent in raw_data:
+                d_raw_data = {}
+                for i_outt_key, i_outt_value in i_patent.items():
+                    if isinstance( i_patent[i_outt_key], list ) and i_outt_key != "cpcs":
+                        for i_l_element in i_patent[i_outt_key]:
+                            d_raw_data.update(i_l_element)
+                        continue
+                    elif i_outt_key == "patent_num_cited_by_us_patents":
+                        d_raw_data[i_outt_key] = float(i_outt_value)
+                        continue
+                    d_raw_data[i_outt_key] = i_outt_value
+                l_raw_data.append(d_raw_data)
+            return l_raw_data
+            
         s = requests.Session()
         with requests.session() as s:
             url = self.url
@@ -29,6 +46,13 @@ class Patents():
                     self.raw_data.append( response.json() )
                     n_pt_read = n_pt_read + self.raw_data[counter-1]["count"]
                     counter += 1
+                
+                l_data = []
+                count = 0
+            
+                for i_l_element in self.raw_data:
+                    self.ord_data.extend( organize_for_dataframe(self.raw_data[count]['patents']) )
+                    count += 1
         return
     
     def write_user_request_filters( self, user_dates: dict , user_pt_code: list, type="cpc" ):
