@@ -1,6 +1,6 @@
 import requests
 import json
-
+#teste comentario
 
 class Patents():
     def __init__(self):
