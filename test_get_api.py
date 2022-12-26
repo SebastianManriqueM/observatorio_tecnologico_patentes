@@ -7,22 +7,6 @@ import os
 
 
 
-def n_citation_stats(df_patents):
-    d_citations = {"max": [],"min": [], "mean": [], "median": []}
-    d_citations["max"]    = df_patents["patent_num_cited_by_us_patents"].max()
-    d_citations["min"]    = df_patents["patent_num_cited_by_us_patents"].min()
-    d_citations["mean"]   = df_patents["patent_num_cited_by_us_patents"].mean(axis=0)
-    d_citations["median"] = df_patents["patent_num_cited_by_us_patents"].median()
-    return d_citations
-
-def create_d_plot( ser_top_n ):
-    d_plot = {}
-    for key in ser_top_n.keys():
-        d_plot[ key ] = []
-    d_plot ['ROW'] = []
-    return d_plot
-
-
 def get_nmax_param_y_grouped( df, selected_grouping='assignee_country', item_to_count='n_patent', n_top=5, Y_span = 10 ):
     if selected_grouping == 'assignee_country':
         other_items_legend = 'ROW'
@@ -34,8 +18,15 @@ def get_nmax_param_y_grouped( df, selected_grouping='assignee_country', item_to_
     df_n_patents['Total']      = df_n_patents.sum(axis=1)
     df_filt                    = df_n_patents[ top_n_key ]
     df_filt[other_items_legend]= df_n_patents['Total'] - df_filt.sum(axis=1)
-
-    return df_filt
+    new_col_index = []
+    
+    for i in range(len(df_filt.index)-1):
+        new_col_index.append( df_filt.index[i].strftime("%Y")[2:] +"-"+ df_filt.index[i+1].strftime("%Y")[2:] )
+    
+    new_col_index.append( df_filt.index[i+1].strftime("%Y")[2:] +"-"+ str(int(df_filt.index[i+1].strftime("%Y")[2:])+Y_span) )
+    df_filt.insert(0, "Yspan", new_col_index, True)
+    
+    return df_filt.set_index("Yspan")
 
 
 def bar_plot_per_param( df, str_per, string_param , new_dir, root_dir = 'C:/Users/sebastiand/Documents/0_UTFPR/EXTENSÃO/Res_api_pview' , show_flag = 1 ):
@@ -53,8 +44,6 @@ def bar_plot_per_param( df, str_per, string_param , new_dir, root_dir = 'C:/User
     ax.set_xlabel( "Group of Years" )
     ax.set_ylabel( str_ylabel )
     plt.grid(axis='y', color='#CCCCCC', linestyle=':')
-
-    
 
     str_tmp = str_per + '_per_' + string_param
     plt.savefig( root_dir + "/" + new_dir + '/' + str_tmp + ".png" )
