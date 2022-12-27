@@ -4,6 +4,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import os
 #import nltk
+#teste comentário 2 - Endereço GitHub:https://github.com/SebastianManriqueM/observatorio_tecnologico_patentes.git
 
 
 
